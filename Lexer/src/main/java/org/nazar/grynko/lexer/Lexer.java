@@ -80,28 +80,24 @@ public class Lexer {
         } else if (isDigit(symbol)) {
             processNumber();
             return;
+        } else if (isWord(symbol)) {
+            processWord();
+            return;
         }
-//        else if (isWord(symbol)) {
-//            procesWord();
-//            return;
-//        }
 //        else if (!lineCursor.isEnded(1)
 //                && isCommentOpen(symbol, lineCursor.nextChar(1))) {
 //            processComment();
 //        } else if (isDoubleQuote(symbol)) {
 //            processDoubleQuote();
-//        } else if (isOperator(symbol)) {
-//            processOperator();
 //        }
 
         // multiline
-        // digit (int, float)
         // comment
-        // identifier
-        // keyword + operator
+        // string
+        // operator
         // dot - can be function or float
 
-        processBadToken(0);
+        processBadToken(cursor.nextChar());
     }
 
     private void processWhitespace() {
@@ -135,19 +131,53 @@ public class Lexer {
         }
     }
 
-    private void processBadToken(int shift) {
-        state = LexerState.ERROR;
-        int row = cursor.row(), col = cursor.col();
+    private void processWord() {
+        int shift = read((Character c) -> !isEndOfToken(c), 0);
+        var col = cursor.col();
+        var word = cursor.line().substring(col, col + shift);
+        TokenType type;
 
+        // Check if it is a "as"/"try" + ("?"/"!")
+        if (isAlphabeticOperator(word)) {
+            if (!cursor.isEnded(shift) && isCastOperator(cursor.nextChar(shift))) {
+                word += cursor.nextChar(shift);
+                shift++;
+            }
+            type = operatorsAutomate.getType(word);
+        }
+        else {
+            type = keywordsAutomate.getType(word);
+        }
+
+        if (type == TokenType.INVALID) {
+            addToken(TokenType.IDENTIFIER, shift);
+        }
+        else {
+            addToken(type, shift);
+        }
+    }
+
+    private void processBadToken(Character c) {
+        state = LexerState.ERROR;
+        addInvalid(c.toString(), "Invalid character", 1);
+    }
+
+    private void processBadToken(int shift) {
         if (cursor.isEnded(shift + 1)) {
             shift++;
         } else {
             shift = read((Character c) -> !isEndOfToken(c), shift);
         }
 
-        addInvalid(cursor.line().substring(col, col + shift), "Invalid token", row, col);
+        int col = cursor.col();
+        addInvalid(cursor.line().substring(col, col + shift), "Invalid token", shift);
+    }
 
+    private void addInvalid(String token, String message, int shift) {
+        int row = cursor.row(), col = cursor.col();
+        invalid.add(new InvalidToken(token, message, row, col));
         cursor.col(col + shift);
+        state = LexerState.DEFAULT;
     }
 
     private void addToken(TokenType type, int length) {
@@ -170,21 +200,13 @@ public class Lexer {
         cache = new StringBuilder();
     }
 
-    private void addInvalid(Character symbol, String message, int row, int col) {
-        addInvalid(symbol.toString(), message, row, col);
-    }
-
-    private void addInvalid(String token, String message, int row, int col) {
-        state = LexerState.DEFAULT;
-        invalid.add(new InvalidToken(token, message, row, col));
-        cursor.col(cursor.col() + 1);
-    }
-
     private int read(Predicate<Character> func, int shift) {
         char symbol = cursor.nextChar(shift);
 
-        while (func.test(symbol) && !cursor.isEnded(shift + 1)) {
+        while (func.test(symbol)) {
             shift++;
+            if (cursor.isEnded(shift)) break;
+
             symbol = cursor.nextChar(shift);
         }
 

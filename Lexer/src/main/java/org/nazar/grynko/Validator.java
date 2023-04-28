@@ -1,5 +1,7 @@
 package org.nazar.grynko;
 
+import java.util.List;
+
 public interface Validator {
 
     static boolean isWhitespace(char c) {
@@ -40,6 +42,15 @@ public interface Validator {
 
     static boolean isEndOfToken(char c) {
         return isWhitespace(c) || isTab(c) || isPunctuation(c) || isOperator(c);
+    }
+
+    static boolean isAlphabeticOperator(String word) {
+        var alphaOperators = List.of("as", "try");
+        return alphaOperators.contains(word);
+    }
+
+    static boolean isCastOperator(Character c) {
+        return "?!".contains(c.toString());
     }
 
 }
