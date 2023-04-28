@@ -83,6 +83,9 @@ public class Lexer {
         } else if (isWord(symbol)) {
             processWord();
             return;
+        } else if (isOperator(symbol)) {
+            processOperator();
+            return;
         }
 //        else if (!lineCursor.isEnded(1)
 //                && isCommentOpen(symbol, lineCursor.nextChar(1))) {
@@ -94,7 +97,7 @@ public class Lexer {
         // multiline
         // comment
         // string
-        // operator
+        // type - @something
         // dot - can be function or float
 
         processBadToken(cursor.nextChar());
@@ -157,15 +160,29 @@ public class Lexer {
         }
     }
 
+    private void processOperator() {
+        int shift = read(Validator::isOperator, 0);
+        var col = cursor.col();
+        var word = cursor.line().substring(col, col + shift);
+
+        var type = operatorsAutomate.getType(word);
+        if (type == TokenType.INVALID) {
+            processBadToken(shift);
+        }
+        else {
+            addToken(type, shift);
+        }
+    }
+
     private void processBadToken(Character c) {
         state = LexerState.ERROR;
         addInvalid(c.toString(), "Invalid character", 1);
     }
 
     private void processBadToken(int shift) {
-        if (cursor.isEnded(shift + 1)) {
+        if (cursor.line().length() == shift + 1) {
             shift++;
-        } else {
+        } else if (!cursor.isEnded(shift)) {
             shift = read((Character c) -> !isEndOfToken(c), shift);
         }
 
