@@ -11,7 +11,7 @@ import lombok.Setter;
 @NoArgsConstructor
 public class InvalidToken {
 
-    private char value;
+    private String value;
     private String message;
     private int row;
     private int col;

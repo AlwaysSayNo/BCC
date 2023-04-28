@@ -7,7 +7,7 @@ import lombok.experimental.Accessors;
 @Setter
 @Getter
 @Accessors(fluent = true)
-public class LineWrapper {
+public class LineCursor {
 
     private String line;
     private int row;

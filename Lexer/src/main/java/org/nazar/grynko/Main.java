@@ -57,7 +57,7 @@ public class Main {
         var sb1 = new StringBuilder();
         lexer.getTokens()
                 .forEach(t -> {
-                    var val = lexer.getSymbolTable().get(t.getSymbolTableIndex() - 1);
+                    var val = lexer.getSymbolTable().get(t.getSymbolTableIndex());
                     sb1.append(String.format(
                             "%d. %s (\"%s\") with length %d", t.getSymbolTableIndex(), t.getType(), val, val.length()));
                     sb1.append(String.format(" on row %d, col %d", t.getRow(), t.getCol()));

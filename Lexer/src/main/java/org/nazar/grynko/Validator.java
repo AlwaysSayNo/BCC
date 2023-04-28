@@ -26,6 +26,10 @@ public interface Validator {
         return "+-*/<>=?!.:&|^~%".contains(c.toString());
     }
 
+    static boolean isDot(char c) {
+        return c == '.';
+    }
+
     static boolean isDoubleQuote(char c) {
         return c == '"';
     }
