@@ -86,35 +86,42 @@ public class Lexer {
         } else if (isOperator(symbol)) {
             processOperator();
             return;
+        } else if (isDoubleQuote(symbol)) {
+            processDoubleQuote();
+            return;
         }
 //        else if (!lineCursor.isEnded(1)
 //                && isCommentOpen(symbol, lineCursor.nextChar(1))) {
 //            processComment();
-//        } else if (isDoubleQuote(symbol)) {
-//            processDoubleQuote();
 //        }
+
 
         // multiline
         // comment
-        // string
         // type - @something
         // dot - can be function or float
+        // interpolation
 
         processBadToken(cursor.nextChar());
     }
 
     private void processWhitespace() {
+        state = LexerState.WHITE_SPACE;
+
         int shift = read(Validator::isWhitespace, 0);
         addToken(TokenType.WHITE_SPACE, shift);
     }
 
     private void processTab() {
+        state = LexerState.TAB;
+
         int shift = read(Validator::isTab, 0);
         addToken(TokenType.TAB, shift);
     }
 
     private void processNumber() {
         state = LexerState.INTEGER;
+
         int shift = read(Validator::isDigit, 0);
 
         if (!cursor.isEnded(shift) && isDot(cursor.nextChar(shift))) {
@@ -135,6 +142,8 @@ public class Lexer {
     }
 
     private void processWord() {
+        state = LexerState.IDENTIFIER;
+
         int shift = read((Character c) -> !isEndOfToken(c), 0);
         var col = cursor.col();
         var word = cursor.line().substring(col, col + shift);
@@ -147,9 +156,15 @@ public class Lexer {
                 shift++;
             }
             type = operatorsAutomate.getType(word);
+            if (type != TokenType.INVALID) {
+                state = LexerState.OPERATOR;
+            }
         }
         else {
             type = keywordsAutomate.getType(word);
+            if (type != TokenType.INVALID) {
+                state = LexerState.KEYWORD;
+            }
         }
 
         if (type == TokenType.INVALID) {
@@ -161,6 +176,8 @@ public class Lexer {
     }
 
     private void processOperator() {
+        state = LexerState.OPERATOR;
+
         int shift = read(Validator::isOperator, 0);
         var col = cursor.col();
         var word = cursor.line().substring(col, col + shift);
@@ -174,20 +191,55 @@ public class Lexer {
         }
     }
 
+    private void processDoubleQuote() {
+        state = LexerState.STRING;
+
+        int shift = 0;
+        char symbol;
+
+        while (!cursor.isEnded(shift + 1)) {
+            shift++;
+            symbol = cursor.nextChar(shift);
+
+            if (state == LexerState.STRING) {
+                if (symbol == '\\') {
+                    state = LexerState.STRING_SLASH;
+                }
+                else if (symbol == '\"') {
+                    addToken(TokenType.STRING_LITERAL, shift + 1);
+                    return;
+                }
+            }
+            else if (state == LexerState.STRING_SLASH) {
+                state = LexerState.STRING;
+            }
+        }
+
+        var message = String.format(
+                "No closing quote was found for the first quote \" (%d, %d)", cursor.row(), cursor.col());
+        processBadToken(message, shift);
+    }
+
     private void processBadToken(Character c) {
-        state = LexerState.ERROR;
         addInvalid(c.toString(), "Invalid character", 1);
     }
 
     private void processBadToken(int shift) {
-        if (cursor.line().length() == shift + 1) {
+        processBadToken("Invalid token", shift);
+    }
+
+    private void processBadToken(String message, int shift) {
+        state = LexerState.ERROR;
+
+        int col = cursor.col();
+
+        if (cursor.line().length() == col + shift + 1) {
             shift++;
         } else if (!cursor.isEnded(shift)) {
             shift = read((Character c) -> !isEndOfToken(c), shift);
         }
 
-        int col = cursor.col();
-        addInvalid(cursor.line().substring(col, col + shift), "Invalid token", shift);
+        addInvalid(cursor.line().substring(col, col + shift), message, shift);
     }
 
     private void addInvalid(String token, String message, int shift) {

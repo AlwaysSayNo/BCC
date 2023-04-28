@@ -8,9 +8,12 @@ public enum LexerState {
     LONG_COMMENT_ENDING,
     INTEGER,
     FLOAT,
-    CHAR,
     STRING,
     STRING_SLASH,
-    IDENTIFIER
+    IDENTIFIER,
+    OPERATOR,
+    KEYWORD,
+    WHITE_SPACE,
+    TAB
 
 }

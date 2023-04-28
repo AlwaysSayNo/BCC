@@ -41,7 +41,7 @@ public interface Validator {
     }
 
     static boolean isEndOfToken(char c) {
-        return isWhitespace(c) || isTab(c) || isPunctuation(c) || isOperator(c);
+        return isWhitespace(c) || isTab(c) || isPunctuation(c) || isOperator(c) || isDoubleQuote(c);
     }
 
     static boolean isAlphabeticOperator(String word) {

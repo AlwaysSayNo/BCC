@@ -71,7 +71,8 @@ public class Main {
         lexer.getInvalid()
                 .forEach(i -> {
                     var val = i.getValue();
-                    sb2.append(String.format("(\"%s\") on row %d, col %d", val, i.getRow(), i.getCol()));
+                    sb2.append(String.format("(\"%s\") on row %d, col %d ", val, i.getRow(), i.getCol()));
+                    sb2.append("(").append(i.getMessage()).append(")");
                     sb2.append("\n");
                 });
         System.out.println(sb2);
