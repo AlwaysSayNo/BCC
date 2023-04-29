@@ -89,16 +89,17 @@ public class Lexer {
         } else if (isDoubleQuote(symbol)) {
             processDoubleQuote();
             return;
+        } else if (isAt(symbol)) {
+            processTypeDeclaration();
+            return;
         }
-//        else if (!lineCursor.isEnded(1)
-//                && isCommentOpen(symbol, lineCursor.nextChar(1))) {
+//        else if (!cursor.isEnded(1) && isCommentOpen(symbol, cursor.nextChar(1))) {
 //            processComment();
 //        }
 
 
         // multiline
         // comment
-        // type - @something
         // dot - can be function or float
         // interpolation
 
@@ -220,6 +221,20 @@ public class Lexer {
         processBadToken(message, shift);
     }
 
+    private void processTypeDeclaration() {
+        state = LexerState.TYPE_DECLARATION;
+
+        int shift = read(Validator::isWord, 1);
+
+        // we read only @ sign - incorrect token
+        if (shift == 1) {
+            processBadToken(shift);
+            return;
+        }
+
+        addToken(TokenType.TYPE_DECLARATION, shift);
+    }
+
     private void processBadToken(Character c) {
         addInvalid(c.toString(), "Invalid character", 1);
     }
@@ -233,7 +248,7 @@ public class Lexer {
 
         int col = cursor.col();
 
-        if (cursor.line().length() == col + shift + 1) {
+        if (shift == 0 && cursor.line().length() == col + 1) {
             shift++;
         } else if (!cursor.isEnded(shift)) {
             shift = read((Character c) -> !isEndOfToken(c), shift);
@@ -270,6 +285,10 @@ public class Lexer {
     }
 
     private int read(Predicate<Character> func, int shift) {
+        if (cursor.isEnded(shift)) {
+            return shift;
+        }
+
         char symbol = cursor.nextChar(shift);
 
         while (func.test(symbol)) {

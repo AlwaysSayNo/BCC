@@ -36,12 +36,16 @@ public interface Validator {
         return c == '"';
     }
 
+    static boolean isAt(char c) {
+        return c == '@';
+    }
+
     static boolean isCommentOpen(char c1, char c2) {
         return c1 == '/' && (c2 == '/' || c2 == '*');
     }
 
     static boolean isEndOfToken(char c) {
-        return isWhitespace(c) || isTab(c) || isPunctuation(c) || isOperator(c) || isDoubleQuote(c);
+        return isWhitespace(c) || isTab(c) || isPunctuation(c) || isOperator(c) || isDoubleQuote(c) || isAt(c);
     }
 
     static boolean isAlphabeticOperator(String word) {

@@ -166,7 +166,8 @@ public enum TokenType {
     RIGHT_PARENTHESIS (")"),
     LEFT_BRACKET ("["),
     RIGHT_BRACKET ("]"),
-    LEFT_CURLY_BRACE ("{");
+    LEFT_CURLY_BRACE ("{"),
+    TYPE_DECLARATION("type_declaration");
 
     private String value;
 

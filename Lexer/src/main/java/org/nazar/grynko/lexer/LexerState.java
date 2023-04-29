@@ -14,6 +14,7 @@ public enum LexerState {
     OPERATOR,
     KEYWORD,
     WHITE_SPACE,
-    TAB
+    TAB,
+    TYPE_DECLARATION
 
 }
