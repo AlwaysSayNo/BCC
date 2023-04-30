@@ -21,6 +21,7 @@ public class Lexer {
 
     private final Automate operatorsAutomate;
     private final Automate keywordsAutomate;
+    private final Automate punctuationsAutomate;
 
     private LexerState state;
     private List<Token> tokens;
@@ -29,9 +30,10 @@ public class Lexer {
     private List<String> symbolTable;
     private Stack<LexerCache> cache;
 
-    public Lexer(List<String> operators, List<String> keywords) {
+    public Lexer(List<String> operators, List<String> keywords, List<String> punctuations) {
         operatorsAutomate = AutomateBuilder.build(operators);
         keywordsAutomate = AutomateBuilder.build(keywords);
+        punctuationsAutomate = AutomateBuilder.build(punctuations);
 
         state = LexerState.DEFAULT;
         tokens = new ArrayList<>();
@@ -116,6 +118,9 @@ public class Lexer {
         } else if (isWord(symbol)) {
             processWord();
             return;
+        } else if (isPunctuation(symbol)) {
+            processPunctuation();
+            return;
         } else if (isOperator(symbol)) {
             processOperator();
             return;
@@ -127,11 +132,16 @@ public class Lexer {
             return;
         }
         // punctuation
-        // dot - can be function or float
-        // interpolation
-        // """ """
 
         processBadToken(cursor.nextChar());
+    }
+
+    private void processPunctuation() {
+        state = PUNCTUATION;
+
+        var punctuation = cursor.nextChar(0).toString();
+        var type = punctuationsAutomate.getType(punctuation);
+        addToken(type, 1);
     }
 
     private void processNonDefaultMode() {

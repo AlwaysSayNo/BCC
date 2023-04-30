@@ -11,16 +11,18 @@ public class Main {
 
     private static final String OPERATORS_PATH = "src/main/resources/operators.txt";
     private static final String KEYWORDS_PATH = "src/main/resources/keywords.txt";
+    private static final String PUNCTUATIONS_PATH = "src/main/resources/punctuations.txt";
     private static final String INPUT_PATH = "src/main/resources/input.swift";
 
     public static void main(String[] args) {
-        List<String> operators = null, keywords = null;
+        List<String> operators = null, keywords = null, punctuations = null;
         var filesAreReachable = true;
         String errorMessage = null;
 
         try {
             operators = readWords(OPERATORS_PATH);
             keywords = readWords(KEYWORDS_PATH);
+            punctuations = readWords(PUNCTUATIONS_PATH);
         } catch (Exception e) {
             filesAreReachable = false;
             errorMessage = e.getMessage();
@@ -31,7 +33,7 @@ public class Main {
             return;
         }
 
-        var lexer = new Lexer(operators, keywords);
+        var lexer = new Lexer(operators, keywords, punctuations);
         lexer.parse(INPUT_PATH);
 
         print(lexer);
