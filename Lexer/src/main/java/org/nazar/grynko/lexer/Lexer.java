@@ -9,11 +9,11 @@ import org.nazar.grynko.automate.AutomateBuilder;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.util.function.Predicate;
 
 import static org.nazar.grynko.Validator.*;
+import static org.nazar.grynko.lexer.LexerState.*;
 
 @Getter
 @Setter
@@ -27,7 +27,7 @@ public class Lexer {
     private List<InvalidToken> invalid;
     private LineCursor cursor;
     private List<String> symbolTable;
-    private StringBuilder cache;
+    private Stack<LexerCache> cache;
 
     public Lexer(List<String> operators, List<String> keywords) {
         operatorsAutomate = AutomateBuilder.build(operators);
@@ -37,7 +37,7 @@ public class Lexer {
         tokens = new ArrayList<>();
         invalid = new ArrayList<>();
         symbolTable = new ArrayList<>();
-        cache = new StringBuilder();
+        cache = new Stack<>();
     }
 
     public boolean parse(String path) {
@@ -66,9 +66,36 @@ public class Lexer {
 
             cursor.row(cursor.row() + 1);
         }
+
+        if (state != DEFAULT) {
+            errorAfterParse();
+        }
+    }
+
+    private void errorAfterParse() {
+        if (!cache.isEmpty()) {
+            processCacheErrorAfterParse();
+        }
+    }
+
+    private void processCacheErrorAfterParse() {
+        while(!cache.isEmpty()) {
+            var lexerCache = cache.pop();
+            int row = lexerCache.getRow(), col = lexerCache.getCol();
+
+            if (lexerCache.getState() == MULTILINE_COMMENT) {
+                var message = String.format("Multiline comment on [%d:%d] wasn't closed", row, col);
+                processBadToken(message, 0);
+            }
+        }
     }
 
     private void processToken() {
+        if (state != DEFAULT) {
+            processNonDefaultMode();
+            return;
+        }
+
         var symbol = cursor.nextChar();
 
         if (isWhitespace(symbol)) {
@@ -76,6 +103,12 @@ public class Lexer {
             return;
         } else if (isTab(symbol)) {
             processTab();
+            return;
+        } else if (!cursor.isEnded(1) && isSingleLineCommentOpen(symbol, cursor.nextChar(1))) {
+            processSingleLineComment();
+            return;
+        } else if (!cursor.isEnded(1) && isMultilineCommentOpen(symbol, cursor.nextChar(1))) {
+            processMultilineComment();
             return;
         } else if (isDigit(symbol)) {
             processNumber();
@@ -93,40 +126,44 @@ public class Lexer {
             processTypeDeclaration();
             return;
         }
-//        else if (!cursor.isEnded(1) && isCommentOpen(symbol, cursor.nextChar(1))) {
-//            processComment();
-//        }
-
-
-        // multiline
-        // comment
+        // punctuation
         // dot - can be function or float
         // interpolation
+        // """ """
 
         processBadToken(cursor.nextChar());
     }
 
+    private void processNonDefaultMode() {
+        if (state == MULTILINE_COMMENT) {
+            processMultilineComment();
+        }
+        else {
+            processBadToken(0);
+        }
+    }
+
     private void processWhitespace() {
-        state = LexerState.WHITE_SPACE;
+        state = WHITE_SPACE;
 
         int shift = read(Validator::isWhitespace, 0);
         addToken(TokenType.WHITE_SPACE, shift);
     }
 
     private void processTab() {
-        state = LexerState.TAB;
+        state = TAB;
 
         int shift = read(Validator::isTab, 0);
         addToken(TokenType.TAB, shift);
     }
 
     private void processNumber() {
-        state = LexerState.INTEGER;
+        state = INTEGER;
 
         int shift = read(Validator::isDigit, 0);
 
         if (!cursor.isEnded(shift) && isDot(cursor.nextChar(shift))) {
-            state = LexerState.FLOAT;
+            state = FLOAT;
             shift++;
         }
 
@@ -135,7 +172,7 @@ public class Lexer {
         }
 
         if (cursor.isEnded(shift) || isEndOfToken(cursor.nextChar(shift))) {
-            var tokenType = state == LexerState.INTEGER ? TokenType.INT : TokenType.FLOAT;
+            var tokenType = state == INTEGER ? TokenType.INT : TokenType.FLOAT;
             addToken(tokenType, shift);
         } else {
             processBadToken(shift);
@@ -143,7 +180,7 @@ public class Lexer {
     }
 
     private void processWord() {
-        state = LexerState.IDENTIFIER;
+        state = IDENTIFIER;
 
         int shift = read((Character c) -> !isEndOfToken(c), 0);
         var col = cursor.col();
@@ -158,26 +195,24 @@ public class Lexer {
             }
             type = operatorsAutomate.getType(word);
             if (type != TokenType.INVALID) {
-                state = LexerState.OPERATOR;
+                state = OPERATOR;
             }
-        }
-        else {
+        } else {
             type = keywordsAutomate.getType(word);
             if (type != TokenType.INVALID) {
-                state = LexerState.KEYWORD;
+                state = KEYWORD;
             }
         }
 
         if (type == TokenType.INVALID) {
             addToken(TokenType.IDENTIFIER, shift);
-        }
-        else {
+        } else {
             addToken(type, shift);
         }
     }
 
     private void processOperator() {
-        state = LexerState.OPERATOR;
+        state = OPERATOR;
 
         int shift = read(Validator::isOperator, 0);
         var col = cursor.col();
@@ -186,14 +221,13 @@ public class Lexer {
         var type = operatorsAutomate.getType(word);
         if (type == TokenType.INVALID) {
             processBadToken(shift);
-        }
-        else {
+        } else {
             addToken(type, shift);
         }
     }
 
     private void processDoubleQuote() {
-        state = LexerState.STRING;
+        state = STRING;
 
         int shift = 0;
         char symbol;
@@ -202,27 +236,26 @@ public class Lexer {
             shift++;
             symbol = cursor.nextChar(shift);
 
-            if (state == LexerState.STRING) {
+            if (state == STRING) {
                 if (symbol == '\\') {
-                    state = LexerState.STRING_SLASH;
-                }
-                else if (symbol == '\"') {
-                    addToken(TokenType.STRING_LITERAL, shift + 1);
+                    state = STRING_SLASH;
+                } else if (symbol == '\"') {
+                    shift++;
+                    addToken(TokenType.STRING_LITERAL, shift);
                     return;
                 }
-            }
-            else if (state == LexerState.STRING_SLASH) {
-                state = LexerState.STRING;
+            } else if (state == STRING_SLASH) {
+                state = STRING;
             }
         }
 
         var message = String.format(
-                "No closing quote was found for the first quote \" (%d, %d)", cursor.row(), cursor.col());
+                "No closing quote was found for the first quote \" [%d:%d]", cursor.row(), cursor.col());
         processBadToken(message, shift);
     }
 
     private void processTypeDeclaration() {
-        state = LexerState.TYPE_DECLARATION;
+        state = TYPE_DECLARATION;
 
         int shift = read(Validator::isWord, 1);
 
@@ -235,6 +268,60 @@ public class Lexer {
         addToken(TokenType.TYPE_DECLARATION, shift);
     }
 
+    private void processSingleLineComment() {
+        state = SINGLE_LINE_COMMENT;
+        addToken(TokenType.SINGLE_LINE_COMMENT, cursor.line().length() - cursor.col());
+    }
+
+    private void processMultilineComment() {
+        state = MULTILINE_COMMENT;
+        int shift;
+        char symbol;
+
+        if (isMultilineCommentOpen(cursor.nextChar(), cursor.nextChar(1))) {
+            var sb = new StringBuilder();
+            int row = cursor.row(), col = cursor.col();
+
+            var lexerCache = new LexerCache(MULTILINE_COMMENT, sb, row, col);
+            cache.push(lexerCache);
+
+            shift = 1;
+        }
+        else {
+            shift = 0;
+            if (cursor.nextChar() == '*') {
+                state = MULTILINE_COMMENT_ENDING;
+            }
+        }
+
+
+        while (!cursor.isEnded(shift + 1)) {
+            shift++;
+            symbol = cursor.nextChar(shift);
+
+            if (state == MULTILINE_COMMENT) {
+                if (symbol == '*') {
+                    state = MULTILINE_COMMENT_ENDING;
+                }
+            } else if (state == MULTILINE_COMMENT_ENDING) {
+                if (symbol == '/') {
+                    shift++;
+                    addCacheToken(TokenType.MULTILINE_COMMENT, shift);
+                    return;
+                }
+                else if (symbol != '*') {
+                    state = MULTILINE_COMMENT;
+                }
+            }
+        }
+
+        int col = cursor.col();
+        cache.peek().getData().append(cursor.line(), col, shift + 1).append("\n");
+
+        cursor.col(col + shift + 1);
+        state = MULTILINE_COMMENT;
+    }
+
     private void processBadToken(Character c) {
         addInvalid(c.toString(), "Invalid character", 1);
     }
@@ -244,13 +331,12 @@ public class Lexer {
     }
 
     private void processBadToken(String message, int shift) {
-        state = LexerState.ERROR;
-
         int col = cursor.col();
+        var states = List.of(OPERATOR);
 
         if (shift == 0 && cursor.line().length() == col + 1) {
             shift++;
-        } else if (!cursor.isEnded(shift)) {
+        } else if (!cursor.isEnded(shift) && !states.contains(state)) {
             shift = read((Character c) -> !isEndOfToken(c), shift);
         }
 
@@ -261,7 +347,8 @@ public class Lexer {
         int row = cursor.row(), col = cursor.col();
         invalid.add(new InvalidToken(token, message, row, col));
         cursor.col(col + shift);
-        state = LexerState.DEFAULT;
+
+        state = DEFAULT;
     }
 
     private void addToken(TokenType type, int length) {
@@ -276,12 +363,17 @@ public class Lexer {
         int index = symbolTable.size() - 1;
         tokens.add(new Token(type, cursor.row(), cursor.col(), index));
         cursor.col(cursor.col() + length);
-        state = LexerState.DEFAULT;
+
+        state = DEFAULT;
     }
 
     private void addCacheToken(TokenType type, int length) {
-        add(type, length, cache.toString());
-        cache = new StringBuilder();
+        var lexerCache = cache.pop();
+        add(type, length, lexerCache.getData().toString());
+
+        if (!cache.isEmpty()) {
+            state = cache.peek().getState();
+        }
     }
 
     private int read(Predicate<Character> func, int shift) {

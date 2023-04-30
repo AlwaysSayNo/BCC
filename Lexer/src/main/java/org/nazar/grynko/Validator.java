@@ -40,8 +40,12 @@ public interface Validator {
         return c == '@';
     }
 
-    static boolean isCommentOpen(char c1, char c2) {
-        return c1 == '/' && (c2 == '/' || c2 == '*');
+    static boolean isSingleLineCommentOpen(char c1, char c2) {
+        return c1 == '/' && c2 == '/';
+    }
+
+    static boolean isMultilineCommentOpen(char c1, char c2) {
+        return c1 == '/' && c2 == '*';
     }
 
     static boolean isEndOfToken(char c) {
