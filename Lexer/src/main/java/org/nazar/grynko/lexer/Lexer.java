@@ -112,6 +112,9 @@ public class Lexer {
         } else if (!cursor.isEnded(1) && isMultilineCommentOpen(symbol, cursor.nextChar(1))) {
             processMultilineComment();
             return;
+        } else if (isDot(symbol)) {
+            processDot();
+            return;
         } else if (isDigit(symbol)) {
             processNumber();
             return;
@@ -134,6 +137,15 @@ public class Lexer {
         // punctuation
 
         processBadToken(cursor.nextChar());
+    }
+
+    private void processDot() {
+        if (!cursor.isEnded(1) && isDigit(cursor.nextChar(1))) {
+            processNumber();
+        }
+        else {
+            processOperator();
+        }
     }
 
     private void processPunctuation() {
