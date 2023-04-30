@@ -46,6 +46,7 @@ try
 try?
 try!
 .
+\.
 ?=
 is
 >=

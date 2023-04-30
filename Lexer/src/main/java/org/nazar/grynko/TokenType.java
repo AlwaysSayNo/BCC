@@ -153,6 +153,7 @@ public enum TokenType {
     OPTIONAL_ERROR_HANDLING ("try?"),
     FORCED_ERROR_HANDLING ("try!"),
     DOT ("."),
+    KEY_PATH_EXPRESSION ("\\."),
     OPTIONAL_ASSIGNMENT ("?="),
     TYPE_CHECKING_IS ("is"),
     GREATER_THAN_OR_EQUAL_TO (">="),
