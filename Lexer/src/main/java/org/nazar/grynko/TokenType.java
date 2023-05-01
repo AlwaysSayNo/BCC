@@ -28,6 +28,7 @@ public enum TokenType {
 
     // Types
     STRING_LITERAL ("string_literal"),
+    MULTILINE_STRING ("multiline_literal"),
     INT ("int"),
     FLOAT ("float"),
 

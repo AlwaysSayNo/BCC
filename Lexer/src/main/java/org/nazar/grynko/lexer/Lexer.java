@@ -88,6 +88,9 @@ public class Lexer {
             if (lexerCache.getState() == MULTILINE_COMMENT) {
                 var message = String.format("Multiline comment on [%d:%d] wasn't closed", row, col);
                 processBadToken(message, 0);
+            } else if (lexerCache.getState() == MULTILINE_STRING) {
+                var message = String.format("Multiline string on [%d:%d] wasn't closed", row, col);
+                processBadToken(message, 0);
             }
         }
     }
@@ -134,33 +137,16 @@ public class Lexer {
             processTypeDeclaration();
             return;
         }
-        // punctuation
 
         processBadToken(cursor.nextChar());
-    }
-
-    private void processDot() {
-        if (!cursor.isEnded(1) && isDigit(cursor.nextChar(1))) {
-            processNumber();
-        }
-        else {
-            processOperator();
-        }
-    }
-
-    private void processPunctuation() {
-        state = PUNCTUATION;
-
-        var punctuation = cursor.nextChar(0).toString();
-        var type = punctuationsAutomate.getType(punctuation);
-        addToken(type, 1);
     }
 
     private void processNonDefaultMode() {
         if (state == MULTILINE_COMMENT) {
             processMultilineComment();
-        }
-        else {
+        } else if (state == MULTILINE_STRING) {
+            processMultilineString();
+        } else {
             processBadToken(0);
         }
     }
@@ -249,7 +235,17 @@ public class Lexer {
     }
 
     private void processDoubleQuote() {
-        state = STRING;
+        if (!cursor.isEnded(1) && !cursor.isEnded(2)
+                && isDoubleQuote(cursor.nextChar(1)) && isDoubleQuote(cursor.nextChar(2))) {
+            processMultilineString();
+        }
+        else {
+            processSingleLineString();
+        }
+    }
+
+    private void processSingleLineString() {
+        state = SINGLE_LINE_STRING;
 
         int shift = 0;
         char symbol;
@@ -258,7 +254,7 @@ public class Lexer {
             shift++;
             symbol = cursor.nextChar(shift);
 
-            if (state == STRING) {
+            if (state == SINGLE_LINE_STRING) {
                 if (symbol == '\\') {
                     state = STRING_SLASH;
                 } else if (symbol == '\"') {
@@ -267,13 +263,51 @@ public class Lexer {
                     return;
                 }
             } else if (state == STRING_SLASH) {
-                state = STRING;
+                state = SINGLE_LINE_STRING;
             }
         }
 
         var message = String.format(
                 "No closing quote was found for the first quote \" [%d:%d]", cursor.row(), cursor.col());
         processBadToken(message, shift);
+    }
+
+    private void processMultilineString() {
+        int shift = 0;
+        char symbol;
+        int quoteCounter = 0;
+
+        if (state != MULTILINE_STRING) {
+            var sb = new StringBuilder();
+            int row = cursor.row(), col = cursor.col();
+
+            var lexerCache = new LexerCache(MULTILINE_STRING, sb, row, col);
+            cache.push(lexerCache);
+
+            shift = 2;
+        }
+        else if (cursor.nextChar() == '"') {
+            quoteCounter++;
+        }
+
+        state = MULTILINE_STRING;
+
+        while (!cursor.isEnded(shift + 1)) {
+            shift++;
+            symbol = cursor.nextChar(shift);
+
+            quoteCounter = symbol == '"' ? quoteCounter + 1 : 0;
+
+            if (quoteCounter == 3) {
+                shift++;
+                addCacheToken(TokenType.MULTILINE_STRING, shift);
+                return;
+            }
+        }
+
+        int col = cursor.col();
+        cache.peek().getData().append(cursor.line(), col, shift + 1).append("\n");
+        cursor.col(col + shift + 1);
     }
 
     private void processTypeDeclaration() {
@@ -316,7 +350,6 @@ public class Lexer {
             }
         }
 
-
         while (!cursor.isEnded(shift + 1)) {
             shift++;
             symbol = cursor.nextChar(shift);
@@ -342,6 +375,23 @@ public class Lexer {
 
         cursor.col(col + shift + 1);
         state = MULTILINE_COMMENT;
+    }
+
+    private void processPunctuation() {
+        state = PUNCTUATION;
+
+        var punctuation = cursor.nextChar(0).toString();
+        var type = punctuationsAutomate.getType(punctuation);
+        addToken(type, 1);
+    }
+
+    private void processDot() {
+        if (!cursor.isEnded(1) && isDigit(cursor.nextChar(1))) {
+            processNumber();
+        }
+        else {
+            processOperator();
+        }
     }
 
     private void processBadToken(Character c) {
