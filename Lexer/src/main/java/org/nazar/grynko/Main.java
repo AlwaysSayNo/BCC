@@ -6,6 +6,8 @@ import org.nazar.grynko.lexer.Lexer;
 import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 public class Main {
 
@@ -55,30 +57,65 @@ public class Main {
 
     private static void print(Lexer lexer) {
         System.out.println("========== TOKENS ==========");
-
-        var sb1 = new StringBuilder();
-        lexer.getTokens()
-                .forEach(t -> {
-                    var val = lexer.getSymbolTable().get(t.getSymbolTableIndex());
-                    sb1.append(String.format(
-                            "%d. %s (\"%s\") with length %d", t.getSymbolTableIndex(), t.getType(), val, val.length()));
-                    sb1.append(String.format(" on row %d, col %d", t.getRow(), t.getCol()));
-                    sb1.append("\n");
-                });
-        System.out.println(sb1);
+        printTokens(lexer);
 
         System.out.println("========== INVALID ==========");
+        printInvalid(lexer);
+    }
 
-        var sb2 = new StringBuilder();
-        lexer.getInvalid()
-                .forEach(i -> {
-                    var val = i.getValue();
-                    sb2.append(String.format("(\"%s\") on row %d, col %d ", val, i.getRow(), i.getCol()));
-                    sb2.append("(").append(i.getMessage()).append(")");
-                    sb2.append("\n");
-                });
-        System.out.println(sb2);
+    private static void printTokens(Lexer lexer) {
+        if (lexer.getTokens().isEmpty()) {
+            System.out.println();
+            return;
+        }
 
+        var tokens = lexer.getTokens();
+        var table = lexer.getSymbolTable();
+
+        var sb = new StringBuilder();
+        for (var token: tokens) {
+            var value = table.get(token.getSymbolTableIndex());
+            sb.append(token.getSymbolTableIndex())
+                    .append(". ")
+                    .append(token.getType())
+                    .append(": '")
+                    .append(value)
+                    .append("' [")
+                    .append(token.getRow())
+                    .append(":")
+                    .append(token.getCol())
+                    .append("] ")
+                    .append("length ")
+                    .append(value.length())
+                    .append("\n");
+        }
+
+        System.out.println(sb);
+    }
+
+    private static void printInvalid(Lexer lexer) {
+        if (lexer.getInvalid().isEmpty()) {
+            System.out.println();
+            return;
+        }
+
+        var sb = new StringBuilder();
+        int i = 0;
+        for (var invalid: lexer.getInvalid()) {
+            sb.append(i)
+                    .append(". '")
+                    .append(invalid.getValue())
+                    .append("'")
+                    .append(" [")
+                    .append(invalid.getRow())
+                    .append(":")
+                    .append(invalid.getCol())
+                    .append("] ")
+                    .append(invalid.getMessage())
+                    .append("\n");
+        }
+
+        System.out.println(sb);
     }
 
 }
