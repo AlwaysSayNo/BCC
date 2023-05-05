@@ -18,6 +18,7 @@ public enum LexerState {
     PUNCTUATION,
     WHITE_SPACE,
     TAB,
-    TYPE_DECLARATION
+    TYPE_DECLARATION,
+    BACK_SLASH
 
 }

@@ -154,12 +154,14 @@ public enum TokenType {
     OPTIONAL_ERROR_HANDLING ("try?"),
     FORCED_ERROR_HANDLING ("try!"),
     DOT ("."),
-    KEY_PATH_EXPRESSION ("\\."),
+    BACK_SLASh ("\\"),
     OPTIONAL_ASSIGNMENT ("?="),
     TYPE_CHECKING_IS ("is"),
     GREATER_THAN_OR_EQUAL_TO (">="),
     NIL_COALESCING_OPERATOR ("??"),
     POWER_OPERATOR ("**="),
+    DOLLAR_SIGN("$"),
+    FUNCTION_TYPE("->"),
 
     // Other
     COMMA (","),

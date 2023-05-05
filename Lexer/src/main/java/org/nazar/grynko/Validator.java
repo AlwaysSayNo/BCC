@@ -25,7 +25,11 @@ public interface Validator {
     }
 
     static boolean isOperator(Character c) {
-        return "+-*/\\<>=?!.:&|^~%".contains(c.toString());
+        return "+-*/<>=?!.:&|^~%$".contains(c.toString());
+    }
+
+    static boolean isBackSlash(Character c) {
+        return c == '\\';
     }
 
     static boolean isDot(char c) {

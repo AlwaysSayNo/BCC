@@ -118,6 +118,9 @@ public class Lexer {
         } else if (isDot(symbol)) {
             processDot();
             return;
+        } else if (isBackSlash(symbol)) {
+            processBackSlash();
+            return;
         } else if (isDigit(symbol)) {
             processNumber();
             return;
@@ -139,6 +142,11 @@ public class Lexer {
         }
 
         processBadToken(cursor.nextChar());
+    }
+
+    private void processBackSlash() {
+        state = BACK_SLASH;
+        addToken(TokenType.BACK_SLASh, 1);
     }
 
     private void processNonDefaultMode() {
@@ -306,7 +314,7 @@ public class Lexer {
         }
 
         int col = cursor.col();
-        cache.peek().getData().append(cursor.line(), col, shift + 1).append("\n");
+        cache.peek().getData().append(cursor.line(), col, col + shift + 1).append("\\n");
         cursor.col(col + shift + 1);
     }
 
@@ -371,7 +379,7 @@ public class Lexer {
         }
 
         int col = cursor.col();
-        cache.peek().getData().append(cursor.line(), col, shift + 1).append("\n");
+        cache.peek().getData().append(cursor.line(), col, shift + 1).append("\\n");
 
         cursor.col(col + shift + 1);
         state = MULTILINE_COMMENT;

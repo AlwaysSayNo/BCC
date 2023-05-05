@@ -6,8 +6,6 @@ import org.nazar.grynko.lexer.Lexer;
 import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 public class Main {
 
